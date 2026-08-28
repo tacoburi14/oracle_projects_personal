@@ -1,20 +1,8 @@
 """
 2단계 — 발화(STT 텍스트)가 1단계에서 뽑은 요소들과 얼마나 일치하는지 판단.
-실제 사용자가 응답할 때마다 실행되는 부분. 텍스트 전용 LLM만 씀 (이미지 다시 안 봄).
 
-핵심: 이 단계에서 모델이 내놓을 수 있는 답을 Literal로 딱 세 가지로만
-강제한다 — "동의어_일치" | "상위개념_일치" | "불일치". 지난번 겪었던
-"role 필드에 아무 문자열이나 나오던" 문제를 여기서 원천 차단하는 것.
-
-동의어_일치/상위개념_일치/불일치라는 "분류"는 LLM이 판단하고,
-그 분류를 실제 몇 점으로 환산할지(SYNONYM_SCORE 등)는 코드가 결정론적으로
-계산한다 (LLM은 산수 안 함 — scoring.py 때부터 지켜온 원칙 그대로).
-
-사전 준비:
-    ollama pull qwen3:1.7b
-
-실행:
-    python3 judge_matches.py
+핵심(주체/행동) 요소 중 하나라도 맞으면 관련성 게이트 통과(is_relevant=True).
+부가(옷/배경 등) 요소는 게이트 판단엔 영향 안 주고, 참고용으로만 같이 반환함.
 """
 
 import json
@@ -25,7 +13,6 @@ from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
 
-# match_type별 점수. 실제 테스트해보면서 조정하세요.
 SCORE_TABLE = {
     "동의어_일치": 1.0,
     "상위개념_일치": 0.5,
@@ -34,9 +21,7 @@ SCORE_TABLE = {
 
 
 class ConceptMatch(BaseModel):
-    """요소 하나에 대해, 발화가 이걸 얼마나 정확히 언급했는지."""
-
-    label: str = Field(description="어떤 요소에 대한 판단인지 (입력받은 label을 그대로 반환)")
+    label: str = Field(description="판단 대상 요소의 label (입력받은 label을 그대로 반환)")
     match_type: Literal["동의어_일치", "상위개념_일치", "불일치"] = Field(
         description=(
             "발화가 이 요소의 synonyms 중 하나를 정확히 언급했으면 '동의어_일치', "
@@ -56,14 +41,14 @@ def load_concepts(concepts_path: str) -> dict:
 
 
 def judge_matches(transcript: str, concepts: dict) -> MatchJudgment:
-    
     load_dotenv()
-    
+
     api_key = os.environ.get("OLLAMA_API_KEY")
     llm = ChatOllama(
         model="gemma4:cloud",
-         base_url="https://ollama.com",
+        base_url="https://ollama.com",
         temperature=0,
+        format=MatchJudgment.model_json_schema(),
         client_kwargs={"headers": {"Authorization": f"Bearer {api_key}"}} if api_key else {},
     )
     structured_llm = llm.with_structured_output(MatchJudgment)
@@ -73,6 +58,14 @@ def judge_matches(transcript: str, concepts: dict) -> MatchJudgment:
         for c in concepts["concepts"]
     )
 
+    example_output = {
+        "matches": [
+            {"label": "남자", "match_type": "동의어_일치"},
+            {"label": "뛰다", "match_type": "상위개념_일치"},
+        ]
+    }
+    example_json_text = json.dumps(example_output, ensure_ascii=False, indent=2)
+
     prompt = (
         f'발화: "{transcript}"\n\n'
         "아래는 그림에서 뽑은 요소 목록이야. 각 요소마다, 위 발화가 그 요소의 "
@@ -80,31 +73,56 @@ def judge_matches(transcript: str, concepts: dict) -> MatchJudgment:
         "판단해줘.\n\n"
         f"{concepts_text}\n\n"
         "각 요소의 label을 그대로 써서, match_type을 '동의어_일치' / "
-        "'상위개념_일치' / '불일치' 중 하나로만 답해."
+        "'상위개념_일치' / '불일치' 중 하나로만 답해.\n\n"
+        "다른 설명이나 마크다운 없이, 반드시 순수 JSON 형식으로만 답해.\n"
+        "JSON 형식 예시는 다음과 같다:\n"
+        f"{example_json_text}"
     )
 
     return structured_llm.invoke(prompt)
 
 
-def score_matches(judgment: MatchJudgment) -> dict:
-    """match_type(LLM 판단)을 실제 점수(코드 계산)로 환산."""
+def score_matches(judgment: MatchJudgment, concepts: dict) -> dict:
+    """match_type(LLM 판단)을 점수로 환산하고, 핵심/부가로 나눠서 게이트를 판단."""
+    category_by_label = {c["label"]: c["category"] for c in concepts["concepts"]}
+
     results = [
-        {"label": m.label, "match_type": m.match_type, "score": SCORE_TABLE[m.match_type]}
+        {
+            "label": m.label,
+            "category": category_by_label.get(m.label, "부가"),
+            "match_type": m.match_type,
+            "score": SCORE_TABLE[m.match_type],
+        }
         for m in judgment.matches
     ]
-    overall = sum(r["score"] for r in results) / len(results) if results else 0.0
-    return {"matches": results, "overall_relevance": overall}
+
+    core_results = [r for r in results if r["category"] == "핵심"]
+    detail_results = [r for r in results if r["category"] == "부가"]
+
+    # 핵심 요소 중 하나라도 (동의어_일치/상위개념_일치) 맞으면 관련성 게이트 통과
+    is_relevant = any(r["match_type"] != "불일치" for r in core_results)
+
+    return {
+        "is_relevant": is_relevant,
+        "core_matches": core_results,
+        "detail_matches": detail_results,
+    }
 
 
 if __name__ == "__main__":
-    concepts = load_concepts("walking_tags.json")   # extract_tags.py의 OUTPUT_PATH와 동일하게 맞춤
+    concepts = load_concepts("bicycle_tags.json")
 
-    # 테스트하고 싶은 발화로 바꿔보세요 (STT로 변환됐다고 가정)
-    transcript = "어...남자...남자가....음...뛰...뛰어가고...있는...것..같아.."
+    transcript = "어 여자는 벚꽃 음 속에서 자 음 자전거를 타고 있는거 아닐까요"
 
     judgment = judge_matches(transcript, concepts)
-    result = score_matches(judgment)
+    result = score_matches(judgment, concepts)
 
-    for m in result["matches"]:
+    print(f"관련성 게이트 통과: {result['is_relevant']}\n")
+
+    print("[핵심 요소]")
+    for m in result["core_matches"]:
         print(f"- {m['label']}: {m['match_type']} → {m['score']}점")
-    print(f"\n전체 관련도 점수: {result['overall_relevance']:.2f}")
+
+    print("\n[부가 요소] (참고용, 게이트 판단엔 미반영)")
+    for m in result["detail_matches"]:
+        print(f"- {m['label']}: {m['match_type']} → {m['score']}점")

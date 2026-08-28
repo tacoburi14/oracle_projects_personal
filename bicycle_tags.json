@@ -1,0 +1,125 @@
+{
+  "concepts": [
+    {
+      "label": "여자",
+      "category": "핵심",
+      "synonyms": [
+        "여성",
+        "여인",
+        "아가씨"
+      ],
+      "hypernyms": [
+        "사람",
+        "인물"
+      ]
+    },
+    {
+      "label": "자전거를 타다",
+      "category": "핵심",
+      "synonyms": [
+        "자전거를 운전하다",
+        "라이딩하다"
+      ],
+      "hypernyms": [
+        "이동하다",
+        "운동하다"
+      ]
+    },
+    {
+      "label": "자전거",
+      "category": "핵심",
+      "synonyms": [
+        "바이시클",
+        "이륜차"
+      ],
+      "hypernyms": [
+        "탈것",
+        "운송수단"
+      ]
+    },
+    {
+      "label": "흰색 상의",
+      "category": "부가",
+      "synonyms": [
+        "흰 티셔츠",
+        "흰색 셔츠"
+      ],
+      "hypernyms": [
+        "옷",
+        "의류"
+      ]
+    },
+    {
+      "label": "청바지",
+      "category": "부가",
+      "synonyms": [
+        "데님 팬츠",
+        "청바지"
+      ],
+      "hypernyms": [
+        "옷",
+        "의류"
+      ]
+    },
+    {
+      "label": "운동화",
+      "category": "부가",
+      "synonyms": [
+        "스니커즈",
+        "신발"
+      ],
+      "hypernyms": [
+        "신발",
+        "잡화"
+      ]
+    },
+    {
+      "label": "벚꽃 나무",
+      "category": "부가",
+      "synonyms": [
+        "벚나무",
+        "벚꽃"
+      ],
+      "hypernyms": [
+        "나무",
+        "식물"
+      ]
+    },
+    {
+      "label": "강",
+      "category": "부가",
+      "synonyms": [
+        "하천",
+        "물줄기"
+      ],
+      "hypernyms": [
+        "지형",
+        "자연"
+      ]
+    },
+    {
+      "label": "잔디밭",
+      "category": "부가",
+      "synonyms": [
+        "풀밭",
+        "초지"
+      ],
+      "hypernyms": [
+        "지면",
+        "자연"
+      ]
+    },
+    {
+      "label": "산책로",
+      "category": "부가",
+      "synonyms": [
+        "길",
+        "도로"
+      ],
+      "hypernyms": [
+        "장소",
+        "인프라"
+      ]
+    }
+  ]
+}

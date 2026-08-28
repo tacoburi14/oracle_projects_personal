@@ -1,4 +1,4 @@
-"""CIU 채점용 LLM 프롬프트 템플릿. judges.py(Anthropic/OpenAI 스텁)와
+"""CIU 채점용 LLM 프롬프트 템플릿. judges.py와
 langgraph_judge.py(Ollama/Qwen 실제 경로)가 공용으로 쓴다."""
 
 PROMPT_TEMPLATE = """당신은 실어증 담화 분석 전문가입니다. 아래 5단계 절차에 따라 발화를 CIU(Correct Information Unit) 기준으로 채점하세요.

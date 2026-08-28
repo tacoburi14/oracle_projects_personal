@@ -1,23 +1,11 @@
 """
-1단계 — 비전 LLM으로 그림 속 요소(사람/사물/배경/행동) 목록 추출.
-그림을 등록할 때 딱 한 번만 실행하면 됨.
-
-사람, 사물, 배경뿐 아니라 행동(동사)까지 포함해서, 각 요소마다
-동의어 묶음 + 상위개념 묶음을 한국어로 자유롭게 생성한다.
-(이 단계는 아직 Literal 아님 — 다음 단계에서 쓸 "후보 목록" 자체를
-만드는 단계라서, 여기서는 모델이 자유롭게 뽑아내야 함.)
-
-사전 준비:
-    ollama pull qwen3-vl
-
-실행:
-    python3 extract_concepts.py
+그림 태그 추출 스크립트 — 그림을 새로 등록할 때 딱 한 번만 실행.
 """
 
 import base64
 import json
 import os
-from typing import List
+from typing import List, Literal
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
@@ -26,9 +14,15 @@ from pydantic import BaseModel, Field
 
 
 class TagConcept(BaseModel):
-    """그림 속 요소 하나(사람/사물/배경/행동)에 대한 동의어·상위개념 묶음."""
+    """그림 속 요소 하나(사람/사물/배경/행동)에 대한 분류·동의어·상위개념 묶음."""
 
     label: str = Field(description="이 요소를 대표하는 이름 (한국어). 예: '남자아이', '날리다'")
+    category: Literal["핵심", "부가"] = Field(
+        description=(
+            "이 요소가 그림의 핵심 내용(주체가 누구인지, 무엇을 하는지)이면 '핵심', "
+            "옷/배경/소품 등 부수적인 디테일이면 '부가'"
+        )
+    )
     synonyms: List[str] = Field(
         description="이 요소를 정확히 가리키는 동의어들 (한국어). 예: ['남자', '남성', '소년']"
     )
@@ -61,35 +55,49 @@ def extract_concepts(image_path: str) -> ImageConcepts:
     )
     structured_llm = llm.with_structured_output(ImageConcepts)
 
-    # 예시 JSON을 파이썬 딕셔너리로 만들고 json.dumps()로 문자열화.
-    # (프롬프트 문자열 안에 "를 직접 섞어 쓰면 파이썬 문자열이 중간에 끊겨서
-    # 문법 에러가 나니까, 이렇게 딕셔너리 → json.dumps()로 만드는 게 안전함)
     example_output = {
         "concepts": [
             {
                 "label": "남자",
+                "category": "핵심",
                 "synonyms": ["남자", "남성", "소년"],
                 "hypernyms": ["사람", "인물"],
             },
             {
                 "label": "뛰다",
+                "category": "핵심",
                 "synonyms": ["뛰다", "달리다"],
                 "hypernyms": ["움직이다", "행동하다"],
+            },
+            {
+                "label": "티셔츠",
+                "category": "부가",
+                "synonyms": ["티셔츠", "셔츠"],
+                "hypernyms": ["옷", "의류"],
             },
         ]
     }
     example_json_text = json.dumps(example_output, ensure_ascii=False, indent=2)
 
+    
     prompt_text = (
         "이 그림에 등장하는 사람, 사물, 배경뿐 아니라 행동(동사)까지 "
-        "전부 찾아서 각각에 대해 다음 두 가지를 한국어로 정리해줘.\n\n"
-        "1. synonyms: 이 요소를 정확히 가리키는 동의어들\n"
-        "   (예: 남자아이라면 '남자', '남성', '소년' / 날리는 행동이라면 "
-        "'날리다', '띄우다')\n"
-        "2. hypernyms: 이 요소를 포함하는 더 포괄적인 상위 개념 단어들\n"
-        "   (예: 남자아이라면 '사람', '인물' / 날리는 행동이라면 '움직이다', "
-        "'하다')\n\n"
-        "행동(동사)도 반드시 최소 하나 이상 포함시켜줘.\n"
+        "전부 찾아서 각각에 대해 다음 세 가지를 한국어로 정리해줘.\n\n"
+        "1. category: 다음 기준으로 '핵심' 또는 '부가'로 분류해줘.\n"
+        "   - 핵심: '누가 무엇을 하는가'라는 문장이 성립하는 데 반드시 필요한 요소.\n"
+        "     · 주체 (사람/동물 등 행동의 주체)\n"
+        "     · 핵심 행동 (동사)\n"
+        "     · 그 행동에 반드시 딸린 대상 (예: '자전거를 타다'의 '자전거', "
+        "'연을 날리다'의 '연' — 이게 없으면 그 행동 자체가 말이 안 되는 것들)\n"
+        "   - 부가: 문장이 이미 성립한 상태에서 덧붙는 디테일.\n"
+        "     · 외형/의상 (옷, 색깔, 헬멧 등 착용물)\n"
+        "     · 배경/장소 (공원, 하늘, 나무 등 주변 환경)\n"
+        "     · 그 외 부수적인 소품\n"
+        "   판단 기준: 이 요소를 빼도 '누가 무엇을 하다'라는 문장이 여전히 "
+        "말이 되면 '부가', 말이 안 되면 '핵심'.\n\n"
+        "2. synonyms: 이 요소를 정확히 가리키는 동의어들\n"
+        "3. hypernyms: 이 요소를 포함하는 더 포괄적인 상위 개념 단어들\n\n"
+        "행동(동사)도 반드시 최소 하나 이상 포함시켜줘.\n\n"
         "다른 설명이나 마크다운 없이, 반드시 순수 JSON 형식으로만 답해.\n"
         "JSON 형식 예시는 다음과 같다:\n"
         f"{example_json_text}\n\n"
@@ -107,8 +115,8 @@ def extract_concepts(image_path: str) -> ImageConcepts:
 
 
 if __name__ == "__main__":
-    IMAGE_PATH = "walking_image.jpg"
-    OUTPUT_PATH = "walking_tags.json"
+    IMAGE_PATH = "bicycle_image.jpg"
+    OUTPUT_PATH = "bicycle_tags.json"
 
     concepts = extract_concepts(IMAGE_PATH)
 
