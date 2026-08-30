@@ -5,6 +5,7 @@
 import base64
 import json
 import os
+import argparse
 from typing import List, Literal
 
 from dotenv import load_dotenv
@@ -115,13 +116,17 @@ def extract_concepts(image_path: str) -> ImageConcepts:
 
 
 if __name__ == "__main__":
-    IMAGE_PATH = "bicycle_image.jpg"
-    OUTPUT_PATH = "bicycle_tags.json"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--image", required=True, help="그림 파일 경로")
+    args = parser.parse_args()
 
-    concepts = extract_concepts(IMAGE_PATH)
+    base_name = os.path.splitext(os.path.basename(args.image))[0]
+    output_path = f"{base_name}_tags.json"   # 이미지 이름에서 자동 생성
 
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+    concepts = extract_concepts(args.image)
+
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(concepts.model_dump(), f, ensure_ascii=False, indent=2)
 
-    print(f"요소 {len(concepts.concepts)}개 추출 완료 → {OUTPUT_PATH}에 저장됨\n")
+    print(f"요소 {len(concepts.concepts)}개 추출 완료 → {output_path}에 저장됨\n")
     print(json.dumps(concepts.model_dump(), ensure_ascii=False, indent=2))

@@ -112,7 +112,7 @@ def score_matches(judgment: MatchJudgment, concepts: dict) -> dict:
 if __name__ == "__main__":
     concepts = load_concepts("bicycle_tags.json")
 
-    transcript = "어 여자는 벚꽃 음 속에서 자 음 자전거를 타고 있는거 아닐까요"
+    transcript = "어 여자는 벚꽃 음 속에서 자 음 옷을 입고 있어요"
 
     judgment = judge_matches(transcript, concepts)
     result = score_matches(judgment, concepts)

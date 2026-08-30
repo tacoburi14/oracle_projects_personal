@@ -55,7 +55,7 @@
       "label": "운동화",
       "category": "부가",
       "synonyms": [
-        "런닝화",
+        "스니커즈",
         "신발"
       ],
       "hypernyms": [
@@ -67,8 +67,8 @@
       "label": "흰색 배경",
       "category": "부가",
       "synonyms": [
-        "무배경",
-        "여백"
+        "여백",
+        "단색 배경"
       ],
       "hypernyms": [
         "배경",
