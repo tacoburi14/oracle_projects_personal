@@ -2,16 +2,20 @@ import os
 
 from fastapi import FastAPI, HTTPException
 
-from .langgraph_judge import score_transcript
-from .scenes import SCENES
-from .schemas import ScoreRequest, ScoreResponse, SummaryOut, TokenOut
+from .ciu_judge import score_transcript
+from .schemas import ScoreRequest, ScoreResponse, SummaryOut, TokenOut, PracticeRequest
+from app.gate_to_ciu import process_response
+
 
 app = FastAPI(
     title="CIU Scoring Service",
-    description="발화 전사문을 Ollama(Qwen) + LangGraph로 CIU(Correct Information Unit) 채점하는 API.",
+    description="발화 전사문을 Ollama(gemma) + LangGraph로 CIU(Correct Information Unit) 채점하는 API.",
     version="0.3.0",
 )
 
+@app.post("/practice")
+def practice_endpoint(request: PracticeRequest):
+    return process_response(request.image_id, request.transcript)
 
 @app.get("/health")
 def health():

@@ -1,7 +1,9 @@
 from typing import List, Optional
-
 from pydantic import BaseModel, Field
 
+class PracticeRequest(BaseModel):
+    image_id: str
+    transcript: str
 
 class ScoreRequest(BaseModel):
     transcript: str = Field(..., description="STT 등으로 얻은 발화 전사문 (필러/멈춤 표시 포함 가능)")
