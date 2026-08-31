@@ -6,9 +6,6 @@
     2. 발화와 비교해서 관련성 게이트 판단 (gate_pass.py)
     3. 게이트 통과하면 → 기존 CIU 채점 파이프라인(langgraph_judge.py)으로 넘김
        게이트 통과 못하면 → CIU 채점 생략, 점수 0으로 채움
-
-실행 (로컬 테스트용, concepts는 로컬 JSON 파일로 대체):
-    python3 pipeline.py --concepts walking_image_tags.json --scene-id walking --transcript "여자가 자전거를 타고 있어"
 """
 
 from app.gate_pass import judge_matches, score_matches
