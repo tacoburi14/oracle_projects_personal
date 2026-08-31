@@ -1,13 +1,9 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-class PracticeRequest(BaseModel):
+class ScoreRequest(BaseModel):
     image_id: str
     transcript: str
-
-class ScoreRequest(BaseModel):
-    transcript: str = Field(..., description="STT 등으로 얻은 발화 전사문 (필러/멈춤 표시 포함 가능)")
-    scene_id: str = Field("kite", description="채점 기준이 될 장면(그림) id")
 
 
 class TokenOut(BaseModel):
@@ -31,9 +27,3 @@ class SummaryOut(BaseModel):
     total_words_raw: int
     aq_term1_excl_disfluency: float
     aq_term1_raw: float
-
-
-class ScoreResponse(BaseModel):
-    scene_id: str
-    tokens: List[TokenOut]
-    summary: SummaryOut
