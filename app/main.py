@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, HTTPException
 
 from .schemas import ScoreRequest
-from app.gate_to_ciu import process_response
+from .gate_to_ciu import process_response
 
 
 app = FastAPI(
@@ -30,7 +30,7 @@ def score_endpoint(request: ScoreRequest):
     try:
         concepts = get_concepts_by_image_id(request.image_id)
     except NotImplementedError as e:
-        raise HTTPException(status_code=501, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
  
     try:
         return process_response(concepts, request.transcript)
